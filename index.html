@@ -57,6 +57,15 @@
   #dropzone p{margin:6px 0;color:var(--muted);}
   #dropzone .fname{color:var(--teal-dark);font-weight:600;}
   #fileInput{display:none;}
+
+  #stlDropzone{
+    border:2px dashed #b9cbc8;border-radius:12px;padding:28px 16px;text-align:center;cursor:pointer;
+    transition:background .15s, border-color .15s;
+  }
+  #stlDropzone.drag{background:#eaf6f3;border-color:var(--teal);}
+  #stlDropzone p{margin:6px 0;color:var(--muted);}
+  #stlDropzone .fname{color:var(--teal-dark);font-weight:600;}
+  #stlFileInput{display:none;}
   .browse-btn{
     display:inline-block;margin-top:6px;background:var(--teal);color:#fff;border:none;
     padding:9px 18px;border-radius:8px;font-size:0.95rem;cursor:pointer;font-weight:600;
@@ -121,6 +130,18 @@
 
   footer{text-align:center;color:#9aa8ab;font-size:0.8rem;margin-top:30px;line-height:1.6;}
   #resultsCard{display:none;}
+  #stlResults{display:none;margin-top:16px;}
+
+  .rec-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px;}
+  @media (max-width:640px){.rec-grid{grid-template-columns:1fr;}}
+  .rec-item{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#fbfcfc;}
+  .rec-item .k{font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;}
+  .rec-item .v{font-size:1.25rem;font-weight:800;margin-top:2px;}
+  .rec-item .note{font-size:0.8rem;color:var(--muted);margin-top:4px;line-height:1.35;}
+  .rec-item.flag-critical{border-color:#f0b0a8;background:#fdf1ee;}
+  .rec-item.flag-important{border-color:#f4d8ab;background:#fff8ec;}
+  .rec-item.flag-yes{border-color:#f0b0a8;background:#fdf1ee;}
+  .rec-item.flag-maybe{border-color:#f4d8ab;background:#fff8ec;}
 </style>
 </head>
 <body>
@@ -132,7 +153,26 @@
   </header>
 
   <div class="card">
-    <h2><span class="step-num">1</span> Upload your gcode file</h2>
+    <h2><span class="step-num">1</span> Check your 3D model (optional)</h2>
+    <p class="hint">STL files are just shape data &mdash; they don't contain any temperature or speed settings (those only get created when you slice). What we CAN do is check the shape itself for print-failure risks before you slice it: does it fit your bed, does it have overhangs, is the base big enough to stick.</p>
+    <div id="stlDropzone">
+      <p id="stlDzText">Drag &amp; drop an <b>.stl</b> file here</p>
+      <p style="font-size:0.85rem;">or</p>
+      <button type="button" class="browse-btn" id="stlBrowseBtn">Choose File</button>
+      <input type="file" id="stlFileInput" accept=".stl">
+    </div>
+
+    <div id="stlResults">
+      <table class="detected" id="stlDetectedTable"></table>
+      <div id="stlBedCallout"></div>
+
+      <p class="hint" style="margin-top:14px;margin-bottom:0;">Recommended slicer settings for this model:</p>
+      <div class="rec-grid" id="stlRecGrid"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="step-num">2</span> Upload your gcode file</h2>
     <p class="hint">Nothing is uploaded anywhere &mdash; this all runs right here in your browser.</p>
     <div id="dropzone">
       <p id="dzText">Drag &amp; drop a <b>.gcode</b> file here</p>
@@ -143,7 +183,7 @@
   </div>
 
   <div class="card">
-    <h2><span class="step-num">2</span> What filament are you using?</h2>
+    <h2><span class="step-num">3</span> What filament are you using?</h2>
     <p class="hint">Pick a preset, then check the numbers against your spool label and adjust anything that's different.</p>
     <div class="field-grid">
       <select id="presetSelect"></select>
@@ -212,21 +252,21 @@
 <script>
 /* ---------------- Filament presets ---------------- */
 const PRESETS = {
-  custom:    {label:"Custom / other (enter your own numbers)", min:190,max:220,bed:60,speed:50,fan:100,
+  custom:    {label:"Custom / other (enter your own numbers)", min:190,max:220,bed:60,speed:50,fan:100,density:1.24,
               tips:"Type the numbers straight off your spool's label."},
-  pla:       {label:"Standard PLA", min:190,max:220,bed:55,speed:50,fan:100,
+  pla:       {label:"Standard PLA", min:190,max:220,bed:55,speed:50,fan:100,density:1.24,
               tips:"Standard PLA likes a strong cooling fan (near 100%) for crisp details and clean overhangs."},
-  silk_pla:  {label:"Silk PLA", min:205,max:215,bed:55,speed:45,fan:40,
+  silk_pla:  {label:"Silk PLA", min:205,max:215,bed:55,speed:45,fan:40,density:1.24,
               tips:"Silk PLA gets its shine from printing slower and with LESS fan than regular PLA. Too much cooling kills the shine, and printing too fast makes it look dull and stringy."},
-  matte_pla: {label:"Matte PLA", min:200,max:220,bed:55,speed:50,fan:80,
+  matte_pla: {label:"Matte PLA", min:200,max:220,bed:55,speed:50,fan:80,density:1.24,
               tips:"Matte PLA behaves close to regular PLA. Keep the fan fairly high for a clean matte finish."},
-  petg:      {label:"PETG", min:230,max:250,bed:75,speed:45,fan:30,
+  petg:      {label:"PETG", min:230,max:250,bed:75,speed:45,fan:30,density:1.27,
               tips:"PETG loves low fan and can string easily between parts. Keep the nozzle a bit further from the model on travel moves if stringing shows up."},
-  abs:       {label:"ABS", min:230,max:250,bed:100,speed:45,fan:0,
+  abs:       {label:"ABS", min:230,max:250,bed:100,speed:45,fan:0,density:1.04,
               tips:"ABS wants almost NO cooling fan and a warm bed to stop warping and cracking. A drafty room or open window is its enemy &mdash; an enclosure or box over the printer helps a lot."},
-  tpu:       {label:"TPU / Flexible", min:210,max:230,bed:50,speed:25,fan:50,
+  tpu:       {label:"TPU / Flexible", min:210,max:230,bed:50,speed:25,fan:50,density:1.21,
               tips:"Flexible filament needs to go SLOW. Rushing it is the #1 cause of jams, blobs, and skipped steps."},
-  woodfill:  {label:"Wood / composite fill", min:195,max:220,bed:55,speed:40,fan:100,
+  woodfill:  {label:"Wood / composite fill", min:195,max:220,bed:55,speed:40,fan:100,density:1.15,
               tips:"Fill filaments (wood, metal, etc.) can clog the nozzle more easily. Printing a bit slower and keeping the nozzle clean helps a lot."},
 };
 
@@ -474,6 +514,210 @@ function generateModifiedGcode(text, opts){
   });
   return out.join('\n');
 }
+
+/* ---------------- STL geometry parsing ---------------- */
+// STL files contain only shape data (triangles) -- no temperature/speed settings.
+// This section checks the shape itself: does it fit the bed, does it have overhangs,
+// is the base big enough to stick, and gives starting-point slicer recommendations
+// (brim, supports, infill density).
+function parseSTL(arrayBuffer){
+  if(arrayBuffer.byteLength>=84){
+    const view = new DataView(arrayBuffer);
+    const triCount = view.getUint32(80,true);
+    const expectedSize = 84 + triCount*50;
+    if(expectedSize===arrayBuffer.byteLength && triCount>0) return parseBinarySTL(view,triCount);
+  }
+  const text = new TextDecoder().decode(arrayBuffer);
+  return parseAsciiSTL(text);
+}
+function parseBinarySTL(view,triCount){
+  const triangles=[]; let offset=84;
+  for(let i=0;i<triCount;i++){
+    const normal=[view.getFloat32(offset,true),view.getFloat32(offset+4,true),view.getFloat32(offset+8,true)]; offset+=12;
+    const v1=[view.getFloat32(offset,true),view.getFloat32(offset+4,true),view.getFloat32(offset+8,true)]; offset+=12;
+    const v2=[view.getFloat32(offset,true),view.getFloat32(offset+4,true),view.getFloat32(offset+8,true)]; offset+=12;
+    const v3=[view.getFloat32(offset,true),view.getFloat32(offset+4,true),view.getFloat32(offset+8,true)]; offset+=12;
+    offset+=2;
+    triangles.push({v1,v2,v3,normal});
+  }
+  return triangles;
+}
+function parseAsciiSTL(text){
+  const triangles=[];
+  const facetRe=/facet\s+normal\s+([\-+0-9.eE]+)\s+([\-+0-9.eE]+)\s+([\-+0-9.eE]+)([\s\S]*?)endfacet/g;
+  const vertRe=/vertex\s+([\-+0-9.eE]+)\s+([\-+0-9.eE]+)\s+([\-+0-9.eE]+)/g;
+  let fm;
+  while((fm=facetRe.exec(text))!==null){
+    const normal=[parseFloat(fm[1]),parseFloat(fm[2]),parseFloat(fm[3])];
+    const body=fm[4]; const verts=[]; let vm; vertRe.lastIndex=0;
+    while((vm=vertRe.exec(body))!==null) verts.push([parseFloat(vm[1]),parseFloat(vm[2]),parseFloat(vm[3])]);
+    if(verts.length===3) triangles.push({v1:verts[0],v2:verts[1],v3:verts[2],normal});
+  }
+  return triangles;
+}
+function stlSub(a,b){return [a[0]-b[0],a[1]-b[1],a[2]-b[2]];}
+function stlCross(a,b){return [a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];}
+function stlDot(a,b){return a[0]*b[0]+a[1]*b[1]+a[2]*b[2];}
+function stlNorm(a){const l=Math.sqrt(stlDot(a,a)); return l>0?[a[0]/l,a[1]/l,a[2]/l]:[0,0,0];}
+
+function analyzeGeometry(triangles, overhangThresholdDeg){
+  overhangThresholdDeg = overhangThresholdDeg ?? 50;
+  let minX=Infinity,minY=Infinity,minZ=Infinity,maxX=-Infinity,maxY=-Infinity,maxZ=-Infinity;
+  for(const {v1,v2,v3} of triangles){
+    for(const v of [v1,v2,v3]){
+      if(v[0]<minX) minX=v[0]; if(v[0]>maxX) maxX=v[0];
+      if(v[1]<minY) minY=v[1]; if(v[1]>maxY) maxY=v[1];
+      if(v[2]<minZ) minZ=v[2]; if(v[2]>maxZ) maxZ=v[2];
+    }
+  }
+  const bedEps = 0.05;
+  let volumeSum=0, totalArea=0, overhangArea=0, maxOverhangAngle=0, baseArea=0;
+
+  for(const {v1,v2,v3,normal} of triangles){
+    volumeSum += stlDot(v1, stlCross(v2,v3)) / 6;
+    const e1=stlSub(v2,v1), e2=stlSub(v3,v1);
+    const computedNormalRaw = stlCross(e1,e2);
+    const area = Math.sqrt(stlDot(computedNormalRaw,computedNormalRaw)) / 2;
+    totalArea += area;
+    const storedMag = normal ? Math.sqrt(stlDot(normal,normal)) : 0;
+    const n = storedMag>0.5 ? stlNorm(normal) : stlNorm(computedNormalRaw);
+    const isBaseFace = v1[2]<=minZ+bedEps && v2[2]<=minZ+bedEps && v3[2]<=minZ+bedEps;
+    if(isBaseFace) baseArea += area;
+    if(n[2] < -0.001 && !isBaseFace){
+      const overhangAngle = Math.asin(Math.min(1,-n[2])) * 180/Math.PI;
+      if(overhangAngle>maxOverhangAngle) maxOverhangAngle=overhangAngle;
+      if(overhangAngle>overhangThresholdDeg) overhangArea += area;
+    }
+  }
+
+  const dims = {x:+(maxX-minX).toFixed(2), y:+(maxY-minY).toFixed(2), z:+(maxZ-minZ).toFixed(2)};
+  return {
+    triangleCount: triangles.length,
+    dims,
+    volumeMM3: Math.abs(volumeSum),
+    totalAreaMM2: totalArea,
+    baseAreaMM2: +baseArea.toFixed(1),
+    overhangAreaMM2: overhangArea,
+    overhangPercent: totalArea>0 ? +(overhangArea/totalArea*100).toFixed(1) : 0,
+    maxOverhangAngleDeg: +maxOverhangAngle.toFixed(1),
+  };
+}
+
+function buildRecommendations(stats, filamentDensity){
+  const {dims, volumeMM3, baseAreaMM2, overhangPercent, maxOverhangAngleDeg} = stats;
+  const footprintSqrt = Math.sqrt(Math.max(baseAreaMM2,1));
+  const heightToFootprintRatio = dims.z / footprintSqrt;
+
+  let brimLevel='standard';
+  if(heightToFootprintRatio>5 || baseAreaMM2<100) brimLevel='critical';
+  else if(heightToFootprintRatio>2.5 || baseAreaMM2<300) brimLevel='important';
+
+  let supportsNeeded='no';
+  if(maxOverhangAngleDeg>60 || overhangPercent>5) supportsNeeded='yes';
+  else if(maxOverhangAngleDeg>45) supportsNeeded='maybe';
+
+  const volumeCM3 = volumeMM3/1000;
+  let infillPercent=20;
+  if(volumeCM3<10) infillPercent=15;
+  else if(volumeCM3>100) infillPercent=25;
+
+  const solidGrams = filamentDensity ? +(volumeCM3*filamentDensity).toFixed(1) : null;
+  const estGramsAtInfill = filamentDensity ? +(volumeCM3*filamentDensity*(infillPercent/100+0.15)).toFixed(1) : null;
+
+  return {brimLevel, brimLines:1, supportsNeeded, infillPercent, volumeCM3:+volumeCM3.toFixed(2), solidGrams, estGramsAtInfill};
+}
+
+const ENDER3V2_BED = {x:220, y:220, z:250};
+
+let lastSTLStats = null;
+
+const stlDropzone = document.getElementById('stlDropzone');
+const stlFileInput = document.getElementById('stlFileInput');
+const stlBrowseBtn = document.getElementById('stlBrowseBtn');
+
+stlBrowseBtn.addEventListener('click', ()=>stlFileInput.click());
+stlDropzone.addEventListener('click', (e)=>{ if(e.target!==stlBrowseBtn) stlFileInput.click(); });
+stlFileInput.addEventListener('change', e=>{ if(e.target.files[0]) readSTLFile(e.target.files[0]); });
+['dragenter','dragover'].forEach(evt=>stlDropzone.addEventListener(evt,e=>{e.preventDefault(); stlDropzone.classList.add('drag');}));
+['dragleave','drop'].forEach(evt=>stlDropzone.addEventListener(evt,e=>{e.preventDefault(); stlDropzone.classList.remove('drag');}));
+stlDropzone.addEventListener('drop', e=>{ const f=e.dataTransfer.files[0]; if(f) readSTLFile(f); });
+
+function readSTLFile(file){
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    document.getElementById('stlDzText').innerHTML = 'Loaded: <span class="fname">'+file.name+'</span>';
+    const triangles = parseSTL(reader.result);
+    if(!triangles.length){
+      document.getElementById('stlDzText').innerHTML += '<br><span style="color:var(--bad);font-size:0.85rem;">Couldn\'t read any triangles from this file &mdash; is it a valid STL?</span>';
+      return;
+    }
+    lastSTLStats = analyzeGeometry(triangles);
+    renderSTLResults();
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function renderSTLResults(){
+  if(!lastSTLStats) return;
+  const s = lastSTLStats;
+  const presetKey = presetSelect.value;
+  const density = PRESETS[presetKey] ? PRESETS[presetKey].density : 1.24;
+  const rec = buildRecommendations(s, density);
+
+  document.getElementById('stlResults').style.display = 'block';
+
+  document.getElementById('stlDetectedTable').innerHTML = `
+    <tr><td>Size (X &times; Y &times; Z)</td><td>${s.dims.x} &times; ${s.dims.y} &times; ${s.dims.z} mm</td></tr>
+    <tr><td>Triangle count</td><td>${s.triangleCount.toLocaleString()}</td></tr>
+    <tr><td>Base contact area</td><td>${s.baseAreaMM2} mm&sup2;</td></tr>
+    <tr><td>Steepest overhang</td><td>${s.maxOverhangAngleDeg}&deg; ${s.maxOverhangAngleDeg>45?'(from vertical)':''}</td></tr>
+    <tr><td>Estimated volume</td><td>${rec.volumeCM3} cm&sup3;</td></tr>
+    <tr><td>Filament @ 100% solid</td><td>${rec.solidGrams!==null?rec.solidGrams+' g':'n/a'}</td></tr>
+    <tr><td>Est. filament @ ${rec.infillPercent}% infill</td><td>${rec.estGramsAtInfill!==null?'~'+rec.estGramsAtInfill+' g':'n/a'}</td></tr>
+  `;
+
+  const fitsX = s.dims.x <= ENDER3V2_BED.x, fitsY = s.dims.y <= ENDER3V2_BED.y, fitsZ = s.dims.z <= ENDER3V2_BED.z;
+  const bedCallout = document.getElementById('stlBedCallout');
+  if(fitsX && fitsY && fitsZ){
+    bedCallout.innerHTML = `<div class="callout good">Fits the Ender 3 V2's 220 &times; 220 &times; 250mm build volume just fine.</div>`;
+  } else {
+    bedCallout.innerHTML = `<div class="callout warn"><b>Too big:</b> this model is ${s.dims.x}&times;${s.dims.y}&times;${s.dims.z}mm, which doesn't fit the Ender 3 V2's 220&times;220&times;250mm bed in this orientation. Scale it down, rotate it, or split it into parts in your slicer.</div>`;
+  }
+
+  const brimLabel = {standard:'Optional', important:'Recommended', critical:'Strongly recommended'}[rec.brimLevel];
+  const brimNote = {
+    standard: "This model has a decent-sized base, so a brim isn't critical, but a 1-line brim never hurts.",
+    important: "The base is a bit small or the model is tall for its footprint &mdash; a brim will really help it stay stuck down.",
+    critical: "Small/narrow base for the height &mdash; without a brim this is likely to detach or tip mid-print.",
+  }[rec.brimLevel];
+
+  const supportsLabel = {no:'Not needed', maybe:'Check manually', yes:'Turn on supports'}[rec.supportsNeeded];
+  const supportsNote = {
+    no: "No steep overhangs detected &mdash; should print fine without supports.",
+    maybe: `Steepest overhang is about ${s.maxOverhangAngleDeg}&deg; &mdash; borderline. Look at the model in your slicer's preview; enable supports if it flags red/orange areas.`,
+    yes: `Steepest overhang is about ${s.maxOverhangAngleDeg}&deg; from vertical &mdash; enable supports in your slicer (Cura: Support &rarr; Generate Support) or this part will likely sag or fail.`,
+  }[rec.supportsNeeded];
+
+  document.getElementById('stlRecGrid').innerHTML = `
+    <div class="rec-item flag-${rec.brimLevel}">
+      <div class="k">Brim</div>
+      <div class="v">${rec.brimLines} line</div>
+      <div class="note"><b>${brimLabel}.</b> ${brimNote}</div>
+    </div>
+    <div class="rec-item flag-${rec.supportsNeeded}">
+      <div class="k">Supports</div>
+      <div class="v">${supportsLabel}</div>
+      <div class="note">${supportsNote}</div>
+    </div>
+    <div class="rec-item">
+      <div class="k">Infill density</div>
+      <div class="v">${rec.infillPercent}%</div>
+      <div class="note">A good all-purpose starting point for this model's size. Go higher (30-50%) for parts that need to be strong, lower (10-15%) for lightweight display pieces.</div>
+    </div>
+  `;
+}
+
+presetSelect.addEventListener('change', ()=>{ if(lastSTLStats) renderSTLResults(); });
 
 /* ---------------- UI wiring ---------------- */
 let lastParsed = null;
