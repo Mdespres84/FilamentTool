@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Print Setting Helper</title>
+<style>
+  :root{
+    --teal:#0f9b8e;
+    --teal-dark:#0b7369;
+    --orange:#ff8a3d;
+    --bg:#f5f7f8;
+    --card:#ffffff;
+    --ink:#1e2a2e;
+    --muted:#5c6b6f;
+    --line:#e2e8e7;
+    --good:#1a9c5c;
+    --warn:#c9761b;
+    --bad:#d1443a;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:linear-gradient(180deg,#eef7f5 0%,var(--bg) 320px);
+    color:var(--ink);
+    padding:24px 16px 60px;
+  }
+  .wrap{max-width:820px;margin:0 auto;}
+  header{text-align:center;margin-bottom:28px;}
+  header h1{font-size:1.9rem;margin:0 0 6px;}
+  header p{color:var(--muted);margin:0;font-size:1.02rem;}
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:22px 24px;
+    margin-bottom:20px;
+    box-shadow:0 1px 3px rgba(20,40,40,0.05);
+  }
+  .card h2{margin:0 0 4px;font-size:1.15rem;display:flex;align-items:center;gap:8px;}
+  .card .step-num{
+    background:var(--teal);color:#fff;width:26px;height:26px;border-radius:50%;
+    display:inline-flex;align-items:center;justify-content:center;font-size:0.85rem;font-weight:700;flex-shrink:0;
+  }
+  .card > p.hint{color:var(--muted);margin:2px 0 16px;font-size:0.92rem;}
+
+  #dropzone{
+    border:2px dashed #b9cbc8;
+    border-radius:12px;
+    padding:28px 16px;
+    text-align:center;
+    cursor:pointer;
+    transition:background .15s, border-color .15s;
+  }
+  #dropzone.drag{background:#eaf6f3;border-color:var(--teal);}
+  #dropzone p{margin:6px 0;color:var(--muted);}
+  #dropzone .fname{color:var(--teal-dark);font-weight:600;}
+  #fileInput{display:none;}
+  .browse-btn{
+    display:inline-block;margin-top:6px;background:var(--teal);color:#fff;border:none;
+    padding:9px 18px;border-radius:8px;font-size:0.95rem;cursor:pointer;font-weight:600;
+  }
+
+  .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px;margin-top:10px;}
+  @media (max-width:560px){.field-grid{grid-template-columns:1fr;}}
+  .field{display:flex;flex-direction:column;gap:5px;}
+  .field label{font-size:0.85rem;font-weight:600;color:var(--muted);}
+  .field input,.field select{
+    padding:9px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.98rem;
+    background:#fbfcfc;
+  }
+  .field input:focus,.field select:focus{outline:2px solid var(--teal);border-color:var(--teal);}
+  .field .unit{font-size:0.78rem;color:#8a9a9d;}
+
+  select#presetSelect{grid-column:1/-1;font-weight:600;}
+
+  .analyze-btn{
+    margin-top:18px;width:100%;background:var(--orange);color:#fff;border:none;
+    padding:13px;border-radius:10px;font-size:1.05rem;font-weight:700;cursor:pointer;
+  }
+  .analyze-btn:disabled{background:#ccd3d2;opacity:.7;cursor:not-allowed;}
+
+  table.detected{width:100%;border-collapse:collapse;margin-top:8px;font-size:0.92rem;}
+  table.detected td{padding:6px 4px;border-bottom:1px solid var(--line);}
+  table.detected td:first-child{color:var(--muted);}
+  table.detected td:last-child{text-align:right;font-weight:600;}
+
+  .tune-card{
+    background:linear-gradient(135deg,var(--teal) 0%,var(--teal-dark) 100%);
+    color:#fff;border-radius:14px;padding:20px 22px;margin:16px 0;
+  }
+  .tune-card h3{margin:0 0 4px;font-size:1.05rem;}
+  .tune-card .sub{opacity:.85;font-size:0.85rem;margin-bottom:14px;}
+  .tune-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+  @media (max-width:520px){.tune-grid{grid-template-columns:1fr;}}
+  .tune-item{background:rgba(255,255,255,0.12);border-radius:10px;padding:12px 14px;}
+  .tune-item .k{font-size:0.78rem;opacity:.85;text-transform:uppercase;letter-spacing:.03em;}
+  .tune-item .v{font-size:1.55rem;font-weight:800;line-height:1.2;}
+  .tune-item .path{font-size:0.72rem;opacity:.7;margin-top:2px;}
+
+  .callout{
+    border-radius:10px;padding:12px 14px;margin-top:14px;font-size:0.9rem;line-height:1.4;
+  }
+  .callout.good{background:#e7f7ee;color:#0e7a45;border:1px solid #bfe8cf;}
+  .callout.warn{background:#fdf1e2;color:#93540c;border:1px solid #f4d8ab;}
+
+  .download-btn{
+    display:inline-flex;align-items:center;gap:8px;background:var(--ink);color:#fff;
+    border:none;padding:12px 20px;border-radius:10px;font-size:0.98rem;font-weight:600;
+    cursor:pointer;margin-top:6px;
+  }
+  .tips-box{
+    background:#fff7ec;border:1px solid #f0dcb8;border-radius:10px;padding:14px 16px;margin-top:16px;font-size:0.92rem;
+  }
+  .tips-box b{color:#93540c;}
+
+  details{margin-top:14px;font-size:0.85rem;color:var(--muted);}
+  details summary{cursor:pointer;font-weight:600;color:var(--teal-dark);}
+  details table{margin-top:8px;}
+
+  footer{text-align:center;color:#9aa8ab;font-size:0.8rem;margin-top:30px;line-height:1.6;}
+  #resultsCard{display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>🖨️ Print Setting Helper</h1>
+    <p>Upload a sliced gcode file, pick your filament, and get the exact numbers to dial in on your printer.</p>
+  </header>
+
+  <div class="card">
+    <h2><span class="step-num">1</span> Upload your gcode file</h2>
+    <p class="hint">Nothing is uploaded anywhere &mdash; this all runs right here in your browser.</p>
+    <div id="dropzone">
+      <p id="dzText">Drag &amp; drop a <b>.gcode</b> file here</p>
+      <p style="font-size:0.85rem;">or</p>
+      <button type="button" class="browse-btn" id="browseBtn">Choose File</button>
+      <input type="file" id="fileInput" accept=".gcode,.gco,.g,.nc">
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="step-num">2</span> What filament are you using?</h2>
+    <p class="hint">Pick a preset, then check the numbers against your spool label and adjust anything that's different.</p>
+    <div class="field-grid">
+      <select id="presetSelect"></select>
+
+      <div class="field">
+        <label>Min nozzle temp</label>
+        <input type="number" id="minTemp"> <span class="unit">&deg;C &mdash; low end of spool's range</span>
+      </div>
+      <div class="field">
+        <label>Max nozzle temp</label>
+        <input type="number" id="maxTemp"> <span class="unit">&deg;C &mdash; high end of spool's range</span>
+      </div>
+      <div class="field">
+        <label>Target nozzle temp</label>
+        <input type="number" id="targetTemp"> <span class="unit">&deg;C &mdash; what we'll actually set</span>
+      </div>
+      <div class="field">
+        <label>Bed temp</label>
+        <input type="number" id="bedTemp"> <span class="unit">&deg;C</span>
+      </div>
+      <div class="field">
+        <label>Target print speed</label>
+        <input type="number" id="targetSpeed"> <span class="unit">mm/s</span>
+      </div>
+      <div class="field">
+        <label>Cooling fan</label>
+        <input type="number" id="fanPercent"> <span class="unit">% &mdash; 0 = off, 100 = full blast</span>
+      </div>
+    </div>
+    <button class="analyze-btn" id="analyzeBtn" disabled>Analyze &amp; get my settings</button>
+  </div>
+
+  <div class="card" id="resultsCard">
+    <h2>✅ Your settings</h2>
+
+    <p class="hint">What this file was originally sliced for:</p>
+    <table class="detected" id="detectedTable"></table>
+
+    <div class="tune-card">
+      <h3>Ender 3 V2 &mdash; Tune screen, while printing</h3>
+      <div class="sub">Press the knob during a print &rarr; Tune &mdash; enter these:</div>
+      <div class="tune-grid" id="tuneGrid"></div>
+    </div>
+
+    <div id="speedCallout"></div>
+
+    <div>
+      <button class="download-btn" id="downloadBtn">⬇ Download a ready-to-print file (settings baked in)</button>
+      <p class="hint" style="margin-top:6px;">This bakes the temps, fan, and speed directly into the gcode, so you don't have to touch the Tune screen at all.</p>
+    </div>
+
+    <div class="tips-box" id="tipsBox"></div>
+
+    <details>
+      <summary>Advanced details</summary>
+      <table class="detected" id="advancedTable"></table>
+    </details>
+  </div>
+
+  <footer>
+    Built for home 3D printing. This tool makes its best guess from the gcode &mdash; always watch the first layer of a print<br>
+    and adjust if something looks off. Works best with Cura and other Marlin-flavor slicers.
+  </footer>
+</div>
+
+<script>
+/* ---------------- Filament presets ---------------- */
+const PRESETS = {
+  custom:    {label:"Custom / other (enter your own numbers)", min:190,max:220,bed:60,speed:50,fan:100,
+              tips:"Type the numbers straight off your spool's label."},
+  pla:       {label:"Standard PLA", min:190,max:220,bed:55,speed:50,fan:100,
+              tips:"Standard PLA likes a strong cooling fan (near 100%) for crisp details and clean overhangs."},
+  silk_pla:  {label:"Silk PLA", min:205,max:215,bed:55,speed:45,fan:40,
+              tips:"Silk PLA gets its shine from printing slower and with LESS fan than regular PLA. Too much cooling kills the shine, and printing too fast makes it look dull and stringy."},
+  matte_pla: {label:"Matte PLA", min:200,max:220,bed:55,speed:50,fan:80,
+              tips:"Matte PLA behaves close to regular PLA. Keep the fan fairly high for a clean matte finish."},
+  petg:      {label:"PETG", min:230,max:250,bed:75,speed:45,fan:30,
+              tips:"PETG loves low fan and can string easily between parts. Keep the nozzle a bit further from the model on travel moves if stringing shows up."},
+  abs:       {label:"ABS", min:230,max:250,bed:100,speed:45,fan:0,
+              tips:"ABS wants almost NO cooling fan and a warm bed to stop warping and cracking. A drafty room or open window is its enemy &mdash; an enclosure or box over the printer helps a lot."},
+  tpu:       {label:"TPU / Flexible", min:210,max:230,bed:50,speed:25,fan:50,
+              tips:"Flexible filament needs to go SLOW. Rushing it is the #1 cause of jams, blobs, and skipped steps."},
+  woodfill:  {label:"Wood / composite fill", min:195,max:220,bed:55,speed:40,fan:100,
+              tips:"Fill filaments (wood, metal, etc.) can clog the nozzle more easily. Printing a bit slower and keeping the nozzle clean helps a lot."},
+};
+
+const presetSelect = document.getElementById('presetSelect');
+Object.entries(PRESETS).forEach(([key,p])=>{
+  const opt = document.createElement('option');
+  opt.value = key; opt.textContent = p.label;
+  presetSelect.appendChild(opt);
+});
+presetSelect.value = 'silk_pla';
+
+const minTempEl = document.getElementById('minTemp');
+const maxTempEl = document.getElementById('maxTemp');
+const targetTempEl = document.getElementById('targetTemp');
+const bedTempEl = document.getElementById('bedTemp');
+const targetSpeedEl = document.getElementById('targetSpeed');
+const fanPercentEl = document.getElementById('fanPercent');
+
+function applyPreset(key){
+  const p = PRESETS[key];
+  minTempEl.value = p.min;
+  maxTempEl.value = p.max;
+  targetTempEl.value = Math.round((p.min+p.max)/2);
+  bedTempEl.value = p.bed;
+  targetSpeedEl.value = p.speed;
+  fanPercentEl.value = p.fan;
+}
+applyPreset(presetSelect.value);
+presetSelect.addEventListener('change', e=>applyPreset(e.target.value));
+[minTempEl,maxTempEl].forEach(el=>el.addEventListener('input',()=>{
+  const mn=parseFloat(minTempEl.value), mx=parseFloat(maxTempEl.value);
+  if(!isNaN(mn)&&!isNaN(mx)) targetTempEl.value = Math.round((mn+mx)/2);
+}));
+
+/* ---------------- File handling ---------------- */
+let loadedText = null;
+let loadedName = '';
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const browseBtn = document.getElementById('browseBtn');
+const analyzeBtn = document.getElementById('analyzeBtn');
+
+browseBtn.addEventListener('click', ()=>fileInput.click());
+dropzone.addEventListener('click', (e)=>{ if(e.target!==browseBtn) fileInput.click(); });
+fileInput.addEventListener('change', e=>{ if(e.target.files[0]) readFile(e.target.files[0]); });
+
+['dragenter','dragover'].forEach(evt=>dropzone.addEventListener(evt,e=>{
+  e.preventDefault(); dropzone.classList.add('drag');
+}));
+['dragleave','drop'].forEach(evt=>dropzone.addEventListener(evt,e=>{
+  e.preventDefault(); dropzone.classList.remove('drag');
+}));
+dropzone.addEventListener('drop', e=>{
+  const f = e.dataTransfer.files[0];
+  if(f) readFile(f);
+});
+
+function readFile(file){
+  loadedName = file.name;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    loadedText = reader.result;
+    document.getElementById('dzText').innerHTML = 'Loaded: <span class="fname">'+file.name+'</span>';
+    analyzeBtn.disabled = false;
+    document.getElementById('resultsCard').style.display = 'none';
+  };
+  reader.readAsText(file);
+}
+
+/* ---------------- Gcode parsing ---------------- */
+function parseGcode(text){
+  const lines = text.split('\n');
+  const hotendTemps={}, bedTemps={}, fanValues={}, printFeedrates={}, firstLayerPrintFeedrates={},
+        travelFeedrates={}, retractFeedrates={}; const retractAmounts=[];
+  let currentLayer=-1, relativeExtrusion=false, lastE=0, currentF=null;
+  let meta={timeSec:null,filamentM:null,layerHeight:null,layerCount:null,flavor:null,generator:null};
+
+  for(let raw of lines){
+    const trimmed = raw.trim();
+    if(!trimmed) continue;
+    if(trimmed.startsWith(';')){
+      let m;
+      if((m=trimmed.match(/;TIME:(\d+)/))) meta.timeSec=parseInt(m[1]);
+      if((m=trimmed.match(/;Filament used:\s*([\d.]+)m/i))) meta.filamentM=parseFloat(m[1]);
+      if((m=trimmed.match(/;\s*filament used \[mm\]\s*=\s*([\d.]+)/i))) meta.filamentM = meta.filamentM ?? parseFloat(m[1])/1000;
+      if((m=trimmed.match(/;Layer height:\s*([\d.]+)/i))) meta.layerHeight=parseFloat(m[1]);
+      if((m=trimmed.match(/;\s*layer_height\s*=\s*([\d.]+)/i))) meta.layerHeight = meta.layerHeight ?? parseFloat(m[1]);
+      if((m=trimmed.match(/;LAYER_COUNT:(\d+)/))) meta.layerCount=parseInt(m[1]);
+      if((m=trimmed.match(/;FLAVOR:(\S+)/))) meta.flavor=m[1];
+      if((m=trimmed.match(/;Generated with (.+)/i))) meta.generator=m[1].trim();
+      if((m=trimmed.match(/^;LAYER:(\d+)/))) currentLayer=parseInt(m[1]);
+      continue;
+    }
+    const code = trimmed.split(';')[0].trim();
+    if(!code) continue;
+    const tokens = code.split(/\s+/);
+    const cmd = tokens[0].toUpperCase();
+
+    if(cmd==='M83'){relativeExtrusion=true;continue;}
+    if(cmd==='M82'){relativeExtrusion=false;continue;}
+    if(cmd==='M109'||cmd==='M104'){
+      const s=code.match(/S([\d.]+)/); if(s){const t=parseFloat(s[1]); if(t>0) hotendTemps[t]=(hotendTemps[t]||0)+1;} continue;
+    }
+    if(cmd==='M190'||cmd==='M140'){
+      const s=code.match(/S([\d.]+)/); if(s){const t=parseFloat(s[1]); if(t>0) bedTemps[t]=(bedTemps[t]||0)+1;} continue;
+    }
+    if(cmd==='M106'){
+      const s=code.match(/S([\d.]+)/); const val=s?parseFloat(s[1]):255;
+      fanValues[val]=(fanValues[val]||0)+1; continue;
+    }
+    if(cmd==='M107'){ fanValues[0]=(fanValues[0]||0)+1; continue; }
+    if(cmd==='G92'){
+      const eTok=tokens.find(t=>/^E/i.test(t)); if(eTok) lastE=parseFloat(eTok.slice(1))||0; continue;
+    }
+    if(cmd==='G0'||cmd==='G1'){
+      let x=null,y=null,e=null,f=null;
+      for(const t of tokens.slice(1)){
+        const letter=t[0].toUpperCase(); const val=parseFloat(t.slice(1));
+        if(letter==='X') x=val; else if(letter==='Y') y=val; else if(letter==='E') e=val; else if(letter==='F') f=val;
+      }
+      if(f!==null) currentF=f;
+      const useF = f!==null?f:currentF;
+      const hasXY = x!==null||y!==null;
+      let isExtrude=false,isRetract=false;
+      if(e!==null){
+        if(relativeExtrusion){ isExtrude=e>0.00001; isRetract=e<-0.00001&&!hasXY; }
+        else{ isExtrude=e>lastE+0.00001; isRetract=e<lastE-0.00001&&!hasXY; }
+      }
+      if(isExtrude&&hasXY&&useF!==null){
+        if(currentLayer<=0) firstLayerPrintFeedrates[useF]=(firstLayerPrintFeedrates[useF]||0)+1;
+        else printFeedrates[useF]=(printFeedrates[useF]||0)+1;
+      } else if(!isExtrude&&hasXY&&useF!==null){
+        travelFeedrates[useF]=(travelFeedrates[useF]||0)+1;
+      } else if(isRetract&&useF!==null){
+        retractFeedrates[useF]=(retractFeedrates[useF]||0)+1;
+        retractAmounts.push(relativeExtrusion?Math.abs(e):Math.abs(e-lastE));
+      }
+      if(e!==null) lastE = relativeExtrusion?lastE:e;
+      continue;
+    }
+  }
+
+  function mode(dict){let bk=null,bv=-1; for(const k in dict){if(dict[k]>bv){bv=dict[k];bk=k;}} return bk!==null?parseFloat(bk):null;}
+  function maxKey(dict){const keys=Object.keys(dict).map(Number); return keys.length?Math.max(...keys):null;}
+  function median(arr){if(!arr.length) return null; const s=[...arr].sort((a,b)=>a-b); const mid=Math.floor(s.length/2); return s.length%2?s[mid]:(s[mid-1]+s[mid])/2;}
+
+  const baseFeedrate=mode(printFeedrates), firstLayerFeedrate=mode(firstLayerPrintFeedrates),
+        travelFeedrate=mode(travelFeedrates), retractFeedrate=mode(retractFeedrates), fanMax=maxKey(fanValues);
+
+  return {
+    meta,
+    hotendTemp: mode(hotendTemps),
+    bedTemp: mode(bedTemps),
+    fanMaxRaw: fanMax,
+    fanMaxPercent: fanMax!==null?Math.round((fanMax/255)*100):null,
+    printSpeedMMs: baseFeedrate!==null?+(baseFeedrate/60).toFixed(1):null,
+    firstLayerSpeedMMs: firstLayerFeedrate!==null?+(firstLayerFeedrate/60).toFixed(1):null,
+    travelSpeedMMs: travelFeedrate!==null?+(travelFeedrate/60).toFixed(1):null,
+    retractSpeedMMs: retractFeedrate!==null?+(retractFeedrate/60).toFixed(1):null,
+    retractDistanceMM: median(retractAmounts),
+    rawBaseFeedrateMinPerMin: baseFeedrate,
+  };
+}
+
+/* ---------------- Gcode rewriting ---------------- */
+function generateModifiedGcode(text, opts){
+  const lines = text.split('\n');
+  let currentLayer=-1, relativeExtrusion=false, lastE=0;
+  const fanScaleFactor = opts.fanMaxRaw ? (opts.targetFanPercent*2.55)/opts.fanMaxRaw : null;
+  const targetFanS = Math.max(0,Math.min(255,Math.round(opts.targetFanPercent*2.55)));
+
+  const out = lines.map(raw=>{
+    const trimmed = raw.trim();
+    if(!trimmed) return raw;
+    if(trimmed.startsWith(';')){
+      const m = trimmed.match(/^;LAYER:(\d+)/);
+      if(m) currentLayer=parseInt(m[1]);
+      return raw;
+    }
+    const firstSemi = raw.indexOf(';');
+    const codePart = firstSemi>=0 ? raw.slice(0,firstSemi) : raw;
+    const commentPart = firstSemi>=0 ? raw.slice(firstSemi) : '';
+    const codeTrim = codePart.trim();
+    if(!codeTrim) return raw;
+    const tokens = codeTrim.split(/\s+/);
+    const cmd = tokens[0].toUpperCase();
+
+    const finish = (newTokens)=> newTokens.join(' ') + (commentPart?' '+commentPart:'');
+
+    if(cmd==='M83'){relativeExtrusion=true; return raw;}
+    if(cmd==='M82'){relativeExtrusion=false; return raw;}
+
+    if(cmd==='M109'||cmd==='M104'){
+      const nt = tokens.map(t=> /^S[\d.]+$/i.test(t) && parseFloat(t.slice(1))>0 ? 'S'+Math.round(opts.targetHotend) : t);
+      return finish(nt);
+    }
+    if(cmd==='M190'||cmd==='M140'){
+      const nt = tokens.map(t=> /^S[\d.]+$/i.test(t) && parseFloat(t.slice(1))>0 ? 'S'+Math.round(opts.targetBed) : t);
+      return finish(nt);
+    }
+    if(cmd==='M106'){
+      let hadS=false;
+      let nt = tokens.map(t=>{
+        if(/^S[\d.]+$/i.test(t)){
+          hadS=true;
+          const v=parseFloat(t.slice(1));
+          let nv = fanScaleFactor!==null ? Math.round(v*fanScaleFactor) : targetFanS;
+          nv = Math.max(0,Math.min(255,nv));
+          return 'S'+nv;
+        }
+        return t;
+      });
+      if(!hadS) nt.push('S'+targetFanS);
+      return finish(nt);
+    }
+    if(cmd==='G92'){
+      const eTok=tokens.find(t=>/^E/i.test(t)); if(eTok) lastE=parseFloat(eTok.slice(1))||0;
+      return raw;
+    }
+    if(cmd==='G0'||cmd==='G1'){
+      let x=null,y=null,e=null,f=null;
+      for(const t of tokens.slice(1)){
+        const letter=t[0].toUpperCase(); const val=parseFloat(t.slice(1));
+        if(letter==='X') x=val; else if(letter==='Y') y=val; else if(letter==='E') e=val; else if(letter==='F') f=val;
+      }
+      const hasXY = x!==null||y!==null;
+      let isExtrude=false;
+      if(e!==null) isExtrude = relativeExtrusion ? e>0.00001 : e>lastE+0.00001;
+      const shouldScale = isExtrude && hasXY && currentLayer>0 && f!==null;
+      let nt = tokens;
+      if(shouldScale){
+        nt = tokens.map(t=>{
+          if(/^F[\d.]+$/i.test(t)){
+            const v=parseFloat(t.slice(1));
+            const nv=v*opts.speedScaleFactor;
+            return 'F'+(Number.isInteger(nv)?nv:nv.toFixed(1));
+          }
+          return t;
+        });
+      }
+      if(e!==null) lastE = relativeExtrusion?lastE:e;
+      return finish(nt);
+    }
+    return raw;
+  });
+  return out.join('\n');
+}
+
+/* ---------------- UI wiring ---------------- */
+let lastParsed = null;
+
+document.getElementById('analyzeBtn').addEventListener('click', ()=>{
+  if(!loadedText) return;
+  const parsed = parseGcode(loadedText);
+  lastParsed = parsed;
+  renderResults(parsed);
+  document.getElementById('resultsCard').style.display = 'block';
+  document.getElementById('resultsCard').scrollIntoView({behavior:'smooth'});
+});
+
+function fmt(v,unit,fallback){
+  return v===null||v===undefined||isNaN(v) ? (fallback||'not detected') : v+(unit||'');
+}
+
+function renderResults(p){
+  const detTable = document.getElementById('detectedTable');
+  detTable.innerHTML = `
+    <tr><td>Slicer</td><td>${p.meta.generator||'unknown'}</td></tr>
+    <tr><td>Nozzle temp (from file)</td><td>${fmt(p.hotendTemp,'&deg;C')}</td></tr>
+    <tr><td>Bed temp (from file)</td><td>${fmt(p.bedTemp,'&deg;C')}</td></tr>
+    <tr><td>Fan (from file)</td><td>${fmt(p.fanMaxPercent,'%')}</td></tr>
+    <tr><td>Print speed (walls/top)</td><td>${fmt(p.printSpeedMMs,' mm/s')}</td></tr>
+    <tr><td>First layer speed</td><td>${fmt(p.firstLayerSpeedMMs,' mm/s')}</td></tr>
+    <tr><td>Layer height</td><td>${fmt(p.meta.layerHeight,' mm')}</td></tr>
+    <tr><td>Estimated print time</td><td>${p.meta.timeSec?Math.round(p.meta.timeSec/60)+' min':'not detected'}</td></tr>
+  `;
+
+  const advTable = document.getElementById('advancedTable');
+  advTable.innerHTML = `
+    <tr><td>Travel speed</td><td>${fmt(p.travelSpeedMMs,' mm/s')}</td></tr>
+    <tr><td>Retraction speed</td><td>${fmt(p.retractSpeedMMs,' mm/s')}</td></tr>
+    <tr><td>Retraction distance</td><td>${fmt(p.retractDistanceMM,' mm')}</td></tr>
+    <tr><td>Filament used</td><td>${fmt(p.meta.filamentM,' m')}</td></tr>
+    <tr><td>Layer count</td><td>${fmt(p.meta.layerCount)}</td></tr>
+    <tr><td>Firmware flavor</td><td>${p.meta.flavor||'unknown'}</td></tr>
+  `;
+
+  const targetTemp = parseFloat(targetTempEl.value);
+  const targetBed = parseFloat(bedTempEl.value);
+  const targetSpeed = parseFloat(targetSpeedEl.value);
+  const targetFan = parseFloat(fanPercentEl.value);
+
+  const baseSpeed = p.printSpeedMMs || 50; // fallback assumption if nothing detected
+  const speedPercent = Math.round((targetSpeed/baseSpeed)*100);
+
+  document.getElementById('tuneGrid').innerHTML = `
+    <div class="tune-item"><div class="k">Print speed</div><div class="v">${speedPercent}%</div><div class="path">Tune &rarr; Print Speed</div></div>
+    <div class="tune-item"><div class="k">Nozzle temp</div><div class="v">${targetTemp}&deg;C</div><div class="path">Tune &rarr; Temperature &rarr; Nozzle</div></div>
+    <div class="tune-item"><div class="k">Bed temp</div><div class="v">${targetBed}&deg;C</div><div class="path">Tune &rarr; Temperature &rarr; Bed</div></div>
+    <div class="tune-item"><div class="k">Fan speed</div><div class="v">${targetFan}%</div><div class="path">Tune &rarr; Fan speed</div></div>
+  `;
+
+  const calloutEl = document.getElementById('speedCallout');
+  if(!p.printSpeedMMs){
+    calloutEl.innerHTML = `<div class="callout warn"><b>Heads up:</b> couldn't detect the file's original print speed, so the Print Speed % above assumes a typical 50&nbsp;mm/s base. Double check by watching the first few layers, and adjust the Tune &rarr; Print Speed % up or down if it looks too fast or slow.</div>`;
+  } else if(speedPercent<40 || speedPercent>200){
+    calloutEl.innerHTML = `<div class="callout warn"><b>Big change:</b> this file was sliced at ${baseSpeed} mm/s and you're targeting ${targetSpeed} mm/s, which is a ${speedPercent}% Print Speed setting. That's a large jump &mdash; ease into it and watch the first layer stick before walking away.</div>`;
+  } else {
+    calloutEl.innerHTML = `<div class="callout good">This file was sliced at ${baseSpeed} mm/s. Setting Print Speed to <b>${speedPercent}%</b> on the Tune screen brings it down to your target of ${targetSpeed} mm/s.</div>`;
+  }
+
+  const presetKey = presetSelect.value;
+  document.getElementById('tipsBox').innerHTML = `<b>${PRESETS[presetKey].label} tip:</b> ${PRESETS[presetKey].tips}`;
+}
+
+document.getElementById('downloadBtn').addEventListener('click', ()=>{
+  if(!loadedText || !lastParsed) return;
+  const p = lastParsed;
+  const targetTemp = parseFloat(targetTempEl.value);
+  const targetBed = parseFloat(bedTempEl.value);
+  const targetSpeed = parseFloat(targetSpeedEl.value);
+  const targetFan = parseFloat(fanPercentEl.value);
+  const baseSpeed = p.printSpeedMMs || 50;
+  const speedScaleFactor = targetSpeed/baseSpeed;
+
+  const newText = generateModifiedGcode(loadedText, {
+    targetHotend: targetTemp,
+    targetBed: targetBed,
+    targetFanPercent: targetFan,
+    fanMaxRaw: p.fanMaxRaw,
+    speedScaleFactor: speedScaleFactor,
+  });
+
+  const blob = new Blob([newText], {type:'text/plain'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const base = loadedName.replace(/\.(gcode|gco|g|nc)$/i,'');
+  a.href = url;
+  a.download = base + '_' + presetSelect.value + '_optimized.gcode';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+</script>
+</body>
+</html>
